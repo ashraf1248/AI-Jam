@@ -1,0 +1,13 @@
+streamlit>=1.37
+pandas>=2.2
+numpy>=1.26
+scipy>=1.13
+scikit-learn>=1.5
+matplotlib>=3.8
+pypdf>=4.2
+Pillow>=10.4
+requests>=2.32
+python-dotenv>=1.0
+faiss-cpu>=1.8
+pydantic>=2.8
+pytest>=8.2
