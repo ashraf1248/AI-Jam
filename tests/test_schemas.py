@@ -1,4 +1,4 @@
-from src.schemas import Hypothesis, HypothesisCritique
+from src.schemas import ExperimentPlan, Hypothesis, HypothesisCritique
 
 
 def test_hypothesis_schema_validation() -> None:
@@ -33,3 +33,30 @@ def test_hypothesis_schema_validation() -> None:
     )
     assert isinstance(hypothesis.critique, HypothesisCritique)
     assert hypothesis.id == "H-1"
+
+
+def test_experiment_plan_flattens_nested_string_fields() -> None:
+    plan = ExperimentPlan.model_validate(
+        {
+            "hypothesis_id": "H-1",
+            "objective": "Discriminate between crosslinking mechanisms.",
+            "variables": [
+                {"independent": ["citric acid concentration", "curing humidity"]},
+                {"dependent": "FTIR ester peak"},
+            ],
+            "controls": {"baseline": ["no crosslinker"]},
+            "procedure": [
+                "Prepare matched film batches.",
+                {"measure": ["FTIR", "water uptake"]},
+            ],
+            "measurements": {"primary": ["tensile strength", "elongation at break"]},
+            "expected_outcomes": "Crosslinked films should show stronger ester signatures.",
+            "failure_modes": [{"risk": "phase separation"}],
+            "approximate_feasibility_level": "medium",
+            "ethical_or_safety_notes": "Follow standard lab PPE requirements.",
+        }
+    )
+
+    assert "independent: citric acid concentration, curing humidity" in plan.variables
+    assert plan.controls == ["baseline: no crosslinker"]
+    assert "measure: FTIR, water uptake" in plan.procedure

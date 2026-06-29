@@ -5,6 +5,30 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 
+def _flatten_string_items(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if isinstance(value, dict):
+        items: list[str] = []
+        for key, nested_value in value.items():
+            nested_items = _flatten_string_items(nested_value)
+            label = str(key).strip()
+            if nested_items:
+                items.append(f"{label}: {', '.join(nested_items)}")
+            elif label:
+                items.append(label)
+        return items
+    if isinstance(value, (list, tuple, set)):
+        items: list[str] = []
+        for item in value:
+            items.extend(_flatten_string_items(item))
+        return items
+    return [str(value)]
+
+
 class EvidenceItem(BaseModel):
     claim: str
     mechanism: str
@@ -73,6 +97,25 @@ class HypothesisCritique(BaseModel):
     should_keep: bool = True
 
 
+class EvidenceTrace(BaseModel):
+    source_type: Literal["pdf", "csv", "image", "note", "literature_search"]
+    source_name: str
+    relation: Literal["supports", "against", "context"]
+    excerpt: str
+    rationale: str
+
+
+class LiteratureSearchHit(BaseModel):
+    title: str
+    abstract: str
+    source: str
+    publication_year: int | None = None
+    doi: str = ""
+    openalex_id: str = ""
+    authors: list[str] = Field(default_factory=list)
+    landing_page_url: str = ""
+
+
 class Hypothesis(BaseModel):
     id: str
     hypothesis: str
@@ -90,11 +133,33 @@ class Hypothesis(BaseModel):
     confidence_score: float = Field(ge=0.0, le=1.0)
     critique: HypothesisCritique | None = None
     weighted_score: float | None = None
+    support_traces: list[EvidenceTrace] = Field(default_factory=list)
+    counter_traces: list[EvidenceTrace] = Field(default_factory=list)
 
     @field_validator("id")
     @classmethod
     def normalize_id(cls, value: str) -> str:
         return value.strip() or "H-0"
+
+
+class RefinedHypothesis(BaseModel):
+    hypothesis_id: str
+    original_hypothesis: str
+    improved_hypothesis: str
+    why_original_was_insufficient: str
+    hidden_assumption: str
+    sharper_mechanism: str
+    key_interaction_or_missing_variable: str
+    revised_prediction: str
+    mechanism_discriminating_experiment: str
+    what_result_would_distinguish_mechanisms: str
+    why_this_is_more_novel: str
+    residual_uncertainty: str
+    refined_critique: HypothesisCritique | None = None
+    weighted_score: float | None = None
+    score_delta_vs_original: float | None = None
+    support_traces: list[EvidenceTrace] = Field(default_factory=list)
+    counter_traces: list[EvidenceTrace] = Field(default_factory=list)
 
 
 class ExperimentPlan(BaseModel):
@@ -108,6 +173,11 @@ class ExperimentPlan(BaseModel):
     failure_modes: list[str] = Field(default_factory=list)
     approximate_feasibility_level: Literal["low", "medium", "high"]
     ethical_or_safety_notes: str
+
+    @field_validator("variables", "controls", "procedure", "measurements", "failure_modes", mode="before")
+    @classmethod
+    def normalize_string_lists(cls, value: Any) -> list[str]:
+        return _flatten_string_items(value)
 
 
 class RetrievalDocument(BaseModel):
@@ -125,8 +195,11 @@ class PipelineInputs(BaseModel):
     num_hypotheses: int = Field(default=5, ge=1, le=12)
     top_k: int = Field(default=3, ge=1, le=12)
     include_image_analysis: bool = True
+    run_literature_search: bool = False
+    max_literature_results: int = Field(default=5, ge=1, le=20)
     run_novelty_check: bool = True
     run_skeptical_critic: bool = True
+    run_hypothesis_refinement: bool = True
 
 
 class PipelineResult(BaseModel):
@@ -135,11 +208,13 @@ class PipelineResult(BaseModel):
     domain: str
     mock_mode: bool
     inputs_analyzed: dict[str, list[str]]
+    literature_hits: list[LiteratureSearchHit] = Field(default_factory=list)
     evidence_items: list[EvidenceItem] = Field(default_factory=list)
     dataset_summaries: list[DatasetSummary] = Field(default_factory=list)
     image_observations: list[ImageObservation] = Field(default_factory=list)
     knowledge_gaps: list[KnowledgeGap] = Field(default_factory=list)
     hypotheses: list[Hypothesis] = Field(default_factory=list)
+    refined_hypotheses: list[RefinedHypothesis] = Field(default_factory=list)
     experiment_plans: list[ExperimentPlan] = Field(default_factory=list)
     final_report_markdown: str
     warnings: list[str] = Field(default_factory=list)
@@ -152,3 +227,27 @@ class FinalReportSections(BaseModel):
     limitations: list[str] = Field(default_factory=list)
     failure_modes: list[str] = Field(default_factory=list)
     recommended_next_steps: list[str] = Field(default_factory=list)
+
+
+class SavedUploadArtifact(BaseModel):
+    name: str
+    data_base64: str
+
+
+class SavedProject(BaseModel):
+    project_id: str
+    project_title: str
+    created_at: str
+    updated_at: str
+    inputs: PipelineInputs
+    result: PipelineResult | None = None
+    stored_artifacts: dict[str, list[SavedUploadArtifact]] = Field(default_factory=dict)
+    upload_manifest: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class SavedProjectSummary(BaseModel):
+    project_id: str
+    project_title: str
+    updated_at: str
+    has_result: bool = False
+    upload_manifest: dict[str, list[str]] = Field(default_factory=dict)

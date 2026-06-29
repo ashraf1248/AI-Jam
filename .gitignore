@@ -26,6 +26,7 @@ dist/
 
 # Streamlit and app state
 .streamlit/secrets.toml
+saved_projects/
 
 # OS / editor files
 .DS_Store

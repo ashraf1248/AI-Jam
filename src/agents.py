@@ -176,6 +176,42 @@ def hypothesis_critique_prompt(hypothesis: dict[str, Any], context: dict[str, An
     ]
 
 
+def refined_hypothesis_critique_prompt(
+    refined_hypothesis: dict[str, Any],
+    context: dict[str, Any],
+) -> list[dict[str, str]]:
+    example = {
+        "groundedness": 4,
+        "novelty": 4,
+        "testability": 4,
+        "specificity": 5,
+        "plausibility": 3,
+        "usefulness": 4,
+        "main_weakness": "Remaining weakness",
+        "suggested_revision": "Next revision",
+        "should_keep": True,
+    }
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are a skeptical scientific critic scoring a refined hypothesis. "
+                "Return only JSON with 1-5 scores and remain cautious."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Refined hypothesis: {json.dumps(refined_hypothesis)}\n"
+                f"Context: {json.dumps(context)}\n"
+                "Score groundedness, novelty, testability, specificity, plausibility, and usefulness. "
+                "Judge whether the refinement improved mechanism discrimination.\n"
+                f"Expected JSON:\n{_json_schema_block(example)}"
+            ),
+        },
+    ]
+
+
 def experiment_design_prompt(hypothesis: dict[str, Any], context: dict[str, Any]) -> list[dict[str, str]]:
     example = {
         "objective": "Objective",
@@ -199,6 +235,41 @@ def experiment_design_prompt(hypothesis: dict[str, Any], context: dict[str, Any]
                 f"Context: {json.dumps(context)}\n"
                 f"Hypothesis: {json.dumps(hypothesis)}\n"
                 "Design a practical experiment with cautious scientific language.\n"
+                f"Expected JSON:\n{_json_schema_block(example)}"
+            ),
+        },
+    ]
+
+
+def hypothesis_refinement_prompt(hypothesis: dict[str, Any], context: dict[str, Any]) -> list[dict[str, str]]:
+    example = {
+        "hypothesis_id": "H-1",
+        "original_hypothesis": "Original hypothesis text",
+        "improved_hypothesis": "More novel, mechanism-discriminating hypothesis",
+        "why_original_was_insufficient": "Why the first version was too broad or weak",
+        "hidden_assumption": "An assumption that was implicit before refinement",
+        "sharper_mechanism": "A more specific mechanism to test",
+        "key_interaction_or_missing_variable": "Missing moderator, interaction, or variable",
+        "revised_prediction": "Sharper prediction",
+        "mechanism_discriminating_experiment": "Experiment that distinguishes mechanisms",
+        "what_result_would_distinguish_mechanisms": "Result pattern that separates the mechanisms",
+        "why_this_is_more_novel": "Why the new version is more novel",
+        "residual_uncertainty": "What still remains uncertain",
+    }
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You refine scientific hypotheses into more mechanism-discriminating variants. "
+                "Return only JSON and be explicit about uncertainty."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Hypothesis: {json.dumps(hypothesis)}\n"
+                f"Context: {json.dumps(context)}\n"
+                "Upgrade this hypothesis so it is more novel, more specific, and better at distinguishing competing mechanisms.\n"
                 f"Expected JSON:\n{_json_schema_block(example)}"
             ),
         },

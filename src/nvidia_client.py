@@ -4,6 +4,9 @@ import base64
 from typing import Any
 
 import requests
+from requests import Response
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from src.config import Settings
 
@@ -11,6 +14,16 @@ from src.config import Settings
 class NvidiaClient:
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.session = requests.Session()
+        retry = Retry(
+            total=3,
+            backoff_factor=1.0,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["POST"],
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -18,11 +31,40 @@ class NvidiaClient:
             "Content-Type": "application/json",
         }
 
+    @staticmethod
+    def _raise_for_api_error(response: Response) -> None:
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            detail = ""
+            try:
+                payload = response.json()
+                detail = payload.get("error", {}).get("message") or payload.get("message") or ""
+            except ValueError:
+                detail = response.text[:300]
+            message = f"NVIDIA API request failed with status {response.status_code}."
+            if detail:
+                message += f" Details: {detail}"
+            raise RuntimeError(message) from exc
+
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.settings.nvidia_base_url}/{path.lstrip('/')}"
-        response = requests.post(url, headers=self._headers(), json=payload, timeout=60)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = self.session.post(
+                url,
+                headers=self._headers(),
+                json=payload,
+                timeout=60,
+            )
+        except requests.RequestException as exc:
+            raise RuntimeError(
+                "Could not reach the NVIDIA API. Check the base URL, key, model names, and network connection."
+            ) from exc
+        self._raise_for_api_error(response)
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise RuntimeError("NVIDIA API returned a non-JSON response.") from exc
 
     def chat_completion(
         self,

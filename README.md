@@ -15,11 +15,13 @@ This project is meant for demos, class projects, and early-stage brainstorming. 
 After you upload files, the app can:
 
 - read text from PDFs
+- optionally search external scientific literature on the web
 - inspect CSV datasets and summarize patterns
 - look at uploaded images
 - combine everything into possible knowledge gaps
 - generate ranked hypotheses
 - create experiment plans for the strongest hypotheses
+- save project progress locally and reopen earlier projects later
 - export results as JSON, Markdown, or CSV
 
 ## Good News: You Can Run It Without API Keys
@@ -159,6 +161,31 @@ If this is your first time using the app, do this:
 8. Read the tabs from left to right:
    Evidence Summary, Data Analysis, Knowledge Gaps, Hypotheses, Experiment Plans, Final Report.
 9. Download the outputs if you want to save the results.
+10. Use the `Save Current Project` button if you want to come back to the same work later.
+
+## External Literature Search
+
+The app can optionally search external scientific papers using the research question you enter.
+
+Important notes:
+
+- this needs an internet connection
+- search results are treated as extra literature inputs
+- the app uses search-result abstracts, not full papers
+- uploaded PDFs are still useful for deeper evidence extraction
+
+## Saved Projects
+
+The app can save your progress locally.
+
+When you save a project, it stores:
+
+- your project title and research question
+- your notes and processing settings
+- your latest generated results
+- copies of uploaded files so the project can be reopened later
+
+You can reopen old work from the `Saved Projects` section in the sidebar.
 
 ## What Each Input Type Does
 
